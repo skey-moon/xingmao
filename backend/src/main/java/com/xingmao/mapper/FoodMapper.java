@@ -6,4 +6,5 @@ import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface FoodMapper extends BaseMapper<Food> {
+    int deductStock(Long foodId, Integer quantity);
 }

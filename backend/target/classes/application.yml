@@ -10,6 +10,12 @@ spring:
     url: jdbc:mysql://localhost:3306/xingmao_food?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: 123456
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   redis:
     host: localhost

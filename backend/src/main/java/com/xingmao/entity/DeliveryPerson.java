@@ -30,6 +30,9 @@ public class DeliveryPerson implements Serializable {
     @TableLogic
     private Integer deleted;
 
+    @Version
+    private Integer version;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

@@ -122,6 +122,34 @@
           </el-table-column>
         </el-table>
 
+        <!-- 评价信息 -->
+        <el-divider v-if="currentOrder && currentOrder.status === 2">用户评价</el-divider>
+        <div v-if="currentReview" class="review-section">
+          <div class="review-info">
+            <span class="review-label">评分：</span>
+            <el-rate v-model="currentReview.rating" disabled show-text />
+          </div>
+          <div v-if="currentReview.content" class="review-content">
+            <span class="review-label">内容：</span>
+            <span>{{ currentReview.content }}</span>
+          </div>
+          <div class="review-time">
+            <span class="review-label">评价时间：</span>
+            <span>{{ currentReview.createTime }}</span>
+          </div>
+          <div v-if="currentReview.reply" class="review-reply">
+            <span class="review-label" style="color: #67C23A">商家回复：</span>
+            <span>{{ currentReview.reply }}</span>
+            <span v-if="currentReview.replyTime" class="reply-time">（{{ currentReview.replyTime }}）</span>
+          </div>
+          <div v-else-if="currentOrder && currentOrder.status === 2 && !currentReview.reply" class="review-reply-action">
+            <el-button type="warning" size="small" @click="showReplyDialog">回复评价</el-button>
+          </div>
+        </div>
+        <div v-else-if="currentOrder && currentOrder.status === 2" class="review-section">
+          <span style="color: #909399; font-size: 14px">暂无评价</span>
+        </div>
+
         <!-- 确认收货按钮 -->
         <div v-if="currentOrder.status === 4" class="confirm-receipt">
           <el-button type="success" size="large" @click="handleConfirmReceipt">
@@ -149,10 +177,29 @@
           </el-select>
         </el-form-item>
       </el-form>
-      <template #footer>
+       <template #footer>
         <el-button @click="dispatchVisible = false">取消</el-button>
         <el-button type="primary" @click="handleAutoAssign">自动分配</el-button>
         <el-button type="success" @click="handleConfirmDispatch" :loading="dispatchLoading">确认派单</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 回复评价弹窗 -->
+    <el-dialog v-model="replyDialogVisible" title="回复评价" width="500px" :close-on-click-modal="false">
+      <el-form :model="replyForm" label-width="80px">
+        <el-form-item label="评价内容">
+          <div class="review-original">
+            <el-rate v-model="currentReview.rating" disabled />
+            <div style="margin-top: 8px">{{ currentReview.content || '无' }}</div>
+          </div>
+        </el-form-item>
+        <el-form-item label="回复内容">
+          <el-input v-model="replyContent" type="textarea" :rows="4" placeholder="请输入回复内容" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="replyDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="replyLoading" @click="handleSubmitReply">提交回复</el-button>
       </template>
     </el-dialog>
   </div>
@@ -163,6 +210,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getOrderList, getOrderDetail, dispatchOrder, confirmReceipt } from '@/api/order'
 import { getDeliveryPersons, autoAssignDelivery, assignDelivery } from '@/api/delivery'
+import { getReviewByOrderId } from '@/api/review'
+import request from '@/api/request'
 
 const tableData = ref([])
 const pageNum = ref(1)
@@ -177,6 +226,14 @@ const detailVisible = ref(false)
 const currentOrder = ref(null)
 const orderItems = ref([])
 const currentDelivery = ref(null)
+const currentReview = ref(null)
+const replyDialogVisible = ref(false)
+const replyContent = ref('')
+const replyLoading = ref(false)
+const replyForm = reactive({
+  reviewId: null,
+  orderId: null
+})
 
 const dispatchVisible = ref(false)
 const dispatchLoading = ref(false)
@@ -240,10 +297,56 @@ const handleDetail = async (row) => {
     currentOrder.value = res.data.order
     orderItems.value = res.data.items || []
     currentDelivery.value = res.data.delivery || null
+
+    // 加载评价信息
+    currentReview.value = null
+    if (res.data.order && res.data.order.status === 2) {
+      try {
+        const reviewRes = await getReviewByOrderId(res.data.order.id)
+        if (reviewRes && reviewRes.code === 200 && reviewRes.data) {
+          currentReview.value = reviewRes.data
+        }
+      } catch (e) {
+        console.log('该订单暂无评价')
+      }
+    }
+
     detailVisible.value = true
   } catch (error) {
     console.error('加载订单详情失败', error)
     ElMessage.error('加载详情失败')
+  }
+}
+
+const showReplyDialog = () => {
+  replyForm.reviewId = currentReview.value.id
+  replyForm.orderId = currentOrder.value.id
+  replyContent.value = ''
+  replyDialogVisible.value = true
+}
+
+const handleSubmitReply = async () => {
+  if (!replyContent.value.trim()) {
+    ElMessage.warning('请输入回复内容')
+    return
+  }
+  replyLoading.value = true
+  try {
+    await request.put('/review/' + currentReview.value.id + '/reply', {
+      reply: replyContent.value
+    })
+    ElMessage.success('回复成功')
+    replyDialogVisible.value = false
+    // 刷新评价信息
+    const reviewRes = await getReviewByOrderId(currentOrder.value.id)
+    if (reviewRes && reviewRes.code === 200 && reviewRes.data) {
+      currentReview.value = reviewRes.data
+    }
+  } catch (error) {
+    console.error('回复失败', error)
+    ElMessage.error('回复失败')
+  } finally {
+    replyLoading.value = false
   }
 }
 
@@ -368,5 +471,62 @@ onMounted(() => {
 .confirm-receipt {
   margin-top: 20px;
   text-align: center;
+}
+
+.review-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.review-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.review-label {
+  font-weight: 500;
+  color: #606266;
+}
+
+.review-content {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #303133;
+}
+
+.review-time {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.review-reply {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dcdfe6;
+  font-size: 14px;
+}
+
+.reply-time {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.review-reply-action {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.review-original {
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
 }
 </style>

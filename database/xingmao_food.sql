@@ -237,4 +237,52 @@ INSERT INTO `sys_user` VALUES (2, 'employee1', '$2a$10$LZ5LLjK1rS70UYaPAFndVu6Cp
 INSERT INTO `sys_user` VALUES (3, 'test', '$2a$10$LZ5LLjK1rS70UYaPAFndVu6CpfEKBD.kOZPvrNHSW/H0tXLcLyYFW', '测试用户', '13800138002', NULL, 'user', NULL, 0, '2026-06-03 00:01:32', '2026-06-03 00:01:32');
 INSERT INTO `sys_user` VALUES (4, 'test1', '$2a$10$aU/NLra6LIIWA/1P3qaZ8uk7p0nxZ/cL7vmENNZoaDpvBMROgoOMO', '弦子', '', NULL, 'user', NULL, 0, '2026-06-03 21:48:02', '2026-06-03 21:48:02');
 
+-- ----------------------------
+-- 高并发改造：添加乐观锁version字段
+-- ----------------------------
+ALTER TABLE `food` ADD COLUMN `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号';
+ALTER TABLE `delivery_person` ADD COLUMN `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号';
+ALTER TABLE `orders` ADD COLUMN `version` INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号';
+
+-- ----------------------------
+-- Table structure for customer_address
+-- ----------------------------
+DROP TABLE IF EXISTS `customer_address`;
+CREATE TABLE `customer_address` (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '地址ID',
+  `user_id` bigint(0) NOT NULL COMMENT '用户ID',
+  `receiver_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '收货人姓名',
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '联系电话',
+  `province` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '省份',
+  `city` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '城市',
+  `district` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '区县',
+  `detail_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '详细地址',
+  `is_default` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否默认: 0-否, 1-是',
+  `deleted` tinyint(1) NULL DEFAULT 0 COMMENT '逻辑删除',
+  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_user_id`(`user_id`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '收货地址表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for order_review
+-- ----------------------------
+DROP TABLE IF EXISTS `order_review`;
+CREATE TABLE `order_review` (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '评价ID',
+  `order_id` bigint(0) NOT NULL COMMENT '订单ID',
+  `user_id` bigint(0) NOT NULL COMMENT '用户ID',
+  `rating` int(0) NOT NULL COMMENT '评分1-5',
+  `content` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '评价内容',
+  `reply` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '商家回复',
+  `reply_time` datetime(0) NULL DEFAULT NULL COMMENT '回复时间',
+  `deleted` tinyint(1) NULL DEFAULT 0 COMMENT '逻辑删除',
+  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_order_id`(`order_id`) USING BTREE,
+  INDEX `idx_user_id`(`user_id`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单评价表' ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;

@@ -91,6 +91,12 @@
 
         <!-- 客户菜单 -->
         <template v-else>
+          <el-menu-item index="/customer/home">
+            <template #title>
+              <el-icon><HomeFilled /></el-icon>
+              <span>首页</span>
+            </template>
+          </el-menu-item>
           <el-menu-item index="/order/create">
             <template #title>
               <el-icon><ShoppingCart /></el-icon>
@@ -101,6 +107,24 @@
             <template #title>
               <el-icon><Document /></el-icon>
               <span>我的订单</span>
+            </template>
+          </el-menu-item>
+          <el-menu-item index="/customer/address">
+            <template #title>
+              <el-icon><Location /></el-icon>
+              <span>收货地址</span>
+            </template>
+          </el-menu-item>
+          <el-menu-item index="/customer/profile">
+            <template #title>
+              <el-icon><User /></el-icon>
+              <span>个人信息</span>
+            </template>
+          </el-menu-item>
+         <el-menu-item index="/customer/review">
+            <template #title>
+              <el-icon><Star /></el-icon>
+              <span>订单评价</span>
             </template>
           </el-menu-item>
         </template>
@@ -177,7 +201,11 @@ const pageTitleMap = {
   '/order/my': '我的订单',
   '/delivery/list': '配送管理',
   '/user/list': '用户管理',
-  '/dashboard': '数据大屏'
+  '/dashboard': '数据大屏',
+  '/customer/home': '个人中心',
+  '/customer/address': '收货地址',
+  '/customer/profile': '个人信息',
+  '/customer/review': '订单评价'
 }
 
 const pageTitle = computed(() => pageTitleMap[route.path] || systemName.value)

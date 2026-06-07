@@ -46,6 +46,26 @@ const routes = [
         component: () => import('@/views/order/MyOrders.vue')
       },
       {
+        path: '/customer/home',
+        name: 'CustomerHome',
+        component: () => import('@/views/customer/Home.vue')
+      },
+      {
+        path: '/customer/address',
+        name: 'CustomerAddress',
+        component: () => import('@/views/customer/Address.vue')
+      },
+      {
+        path: '/customer/profile',
+        name: 'CustomerProfile',
+        component: () => import('@/views/customer/Profile.vue')
+      },
+      {
+        path: '/customer/review',
+        name: 'CustomerReview',
+        component: () => import('@/views/customer/Review.vue')
+      },
+      {
         path: '/user/list',
         name: 'UserList',
         component: () => import('@/views/user/List.vue')
@@ -95,12 +115,12 @@ router.beforeEach((to, from, next) => {
       return
     }
     // user 角色 -> 客户平台
-    next('/order/create')
+    next('/customer/home')
     return
   }
 
   // 客户平台页面
-  if (to.path === '/order/create' || to.path === '/order/my') {
+  if (to.path === '/order/create' || to.path === '/order/my' || to.path.startsWith('/customer/')) {
     if (token) {
       next()
       return

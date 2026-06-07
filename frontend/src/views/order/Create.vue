@@ -72,7 +72,12 @@
         </template>
         <el-form :model="orderForm" :rules="formRules" ref="formRef" label-width="100px">
           <el-form-item label="配送地址" prop="address">
-            <el-input v-model="orderForm.address" placeholder="请输入详细配送地址" type="textarea" :rows="2" />
+            <div class="address-select-wrapper">
+              <el-select v-model="selectedAddressId" placeholder="选择已保存的地址" clearable style="width: 100%; margin-bottom: 8px" @change="handleAddressChange">
+                <el-option v-for="addr in addressList" :key="addr.id" :label="formatAddressLabel(addr)" :value="addr.id" />
+              </el-select>
+              <el-input v-model="orderForm.address" placeholder="或输入新的详细配送地址" type="textarea" :rows="2" @blur="handleAddressInput" />
+            </div>
           </el-form-item>
           <el-form-item label="备注">
             <el-input v-model="orderForm.remark" placeholder="特殊要求或备注信息" type="textarea" :rows="2" />
@@ -97,10 +102,14 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getFoodList } from '@/api/food'
 import { createOrder } from '@/api/order'
+import { getMyAddresses } from '@/api/address'
 
 const searchName = ref('')
 const foodOptions = ref([])
 const loadingFoods = ref(false)
+
+const addressList = ref([])
+const selectedAddressId = ref(null)
 
 const cart = ref({})
 const orderForm = reactive({
@@ -113,6 +122,39 @@ const submitLoading = ref(false)
 
 const formRules = {
   address: [{ required: true, message: '请输入配送地址', trigger: 'blur' }]
+}
+
+const formatAddressLabel = (addr) => {
+  return `${addr.receiverName} ${addr.phone} - ${addr.province || ''}${addr.city || ''}${addr.district || ''}${addr.detailAddress}`
+}
+
+const handleAddressChange = (addrId) => {
+  if (addrId) {
+    const addr = addressList.value.find(a => a.id === addrId)
+    if (addr) {
+      orderForm.address = `${addr.province || ''}${addr.city || ''}${addr.district || ''}${addr.detailAddress}`
+    }
+  }
+}
+
+const handleAddressInput = () => {
+  // 用户手动输入地址时，清空选择
+  selectedAddressId.value = null
+}
+
+const loadAddresses = async () => {
+  try {
+    const result = await getMyAddresses()
+    addressList.value = result.data || []
+    // 自动填充默认地址
+    const defaultAddr = addressList.value.find(a => a.isDefault === 1)
+    if (defaultAddr) {
+      selectedAddressId.value = defaultAddr.id
+      orderForm.address = `${defaultAddr.province || ''}${defaultAddr.city || ''}${defaultAddr.district || ''}${defaultAddr.detailAddress}`
+    }
+  } catch (error) {
+    console.error('加载地址失败', error)
+  }
 }
 
 const cartItems = computed(() => {
@@ -204,6 +246,7 @@ const handleSubmit = async () => {
 
 onMounted(() => {
   loadFoods()
+  loadAddresses()
 })
 </script>
 
@@ -234,6 +277,8 @@ onMounted(() => {
 .food-card { grid-row: 1 / 2; }
 .cart-card { grid-row: 1 / 3; align-self: start; }
 .order-form-card { grid-row: 2 / 3; }
+
+.address-select-wrapper { width: 100%; }
 
 .card-header {
   display: flex;

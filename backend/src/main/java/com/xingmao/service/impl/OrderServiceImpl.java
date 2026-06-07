@@ -102,13 +102,12 @@ public class OrderServiceImpl extends ServiceImpl<OrdersMapper, Orders> implemen
             if (food == null) {
                 throw new RuntimeException("食材不存在: " + foodId);
             }
-            if (food.getStock() < quantity) {
+
+            // 原子扣减库存，WHERE条件保证并发安全
+            int updated = foodMapper.deductStock(foodId, quantity);
+            if (updated == 0) {
                 throw new RuntimeException("食材库存不足: " + food.getName());
             }
-
-            // 减库存
-            food.setStock(food.getStock() - quantity);
-            foodMapper.updateById(food);
 
             BigDecimal subtotal = food.getPrice().multiply(new BigDecimal(quantity));
             totalPrice = totalPrice.add(subtotal);

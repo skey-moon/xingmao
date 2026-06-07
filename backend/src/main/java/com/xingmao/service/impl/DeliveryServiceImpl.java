@@ -66,14 +66,13 @@ public class DeliveryServiceImpl extends ServiceImpl<DeliveryMapper, Delivery> i
         delivery.setStatus(0);
         this.save(delivery);
 
-        // 更新配送员的订单数
+        // 更新配送员的订单数（原子递增）
         if (deliveryPersonId != null) {
+            deliveryPersonMapper.incrementOrderCount(deliveryPersonId);
+            // 使用FOR UPDATE锁住配送员行，再更新状态
             DeliveryPerson person = deliveryPersonMapper.selectById(deliveryPersonId);
             if (person != null) {
-                person.setOrderCount(person.getOrderCount() + 1);
-                if (person.getOrderCount() > 0) {
-                    person.setStatus(1); // 变为配送中
-                }
+                person.setStatus(1); // 变为配送中
                 deliveryPersonMapper.updateById(person);
             }
         }
@@ -86,23 +85,14 @@ public class DeliveryServiceImpl extends ServiceImpl<DeliveryMapper, Delivery> i
     @Override
     @Transactional
     public void autoAssignDelivery(Long orderId) {
-        // 查找空闲的配送员
-        DeliveryPerson person = deliveryPersonMapper.selectOne(
-                new LambdaQueryWrapper<DeliveryPerson>()
-                        .eq(DeliveryPerson::getStatus, 0)
-                        .orderByAsc(DeliveryPerson::getOrderCount)
-                        .last("LIMIT 1")
-        );
+        // 查找空闲的配送员（FOR UPDATE锁住，防止重复分配）
+        DeliveryPerson person = deliveryPersonMapper.selectAvailablePersonWithLock();
 
         if (person != null) {
             assignDelivery(orderId, person.getName(), person.getPhone(), person.getId());
         } else {
-            // 没有空闲配送员，分配给订单最少的
-            person = deliveryPersonMapper.selectOne(
-                    new LambdaQueryWrapper<DeliveryPerson>()
-                            .orderByAsc(DeliveryPerson::getOrderCount)
-                            .last("LIMIT 1")
-            );
+            // 没有空闲配送员，分配给订单最少的（也加锁）
+            person = deliveryPersonMapper.selectLeastBusyWithLock();
             if (person != null) {
                 assignDelivery(orderId, person.getName(), person.getPhone(), person.getId());
             } else {
@@ -144,15 +134,13 @@ public class DeliveryServiceImpl extends ServiceImpl<DeliveryMapper, Delivery> i
                 transactionMapper.insert(trans);
             }
 
-            // 减少配送员的订单数
+            // 减少配送员的订单数（原子递减）
             if (delivery.getDeliveryPersonId() != null) {
+                deliveryPersonMapper.decrementOrderCount(delivery.getDeliveryPersonId());
+                // 再查询更新状态
                 DeliveryPerson person = deliveryPersonMapper.selectById(delivery.getDeliveryPersonId());
-                if (person != null) {
-                    int newCount = Math.max(0, person.getOrderCount() - 1);
-                    person.setOrderCount(newCount);
-                    if (newCount == 0) {
-                        person.setStatus(0); // 变为空闲
-                    }
+                if (person != null && person.getOrderCount() == 0) {
+                    person.setStatus(0); // 变为空闲
                     deliveryPersonMapper.updateById(person);
                 }
             }
